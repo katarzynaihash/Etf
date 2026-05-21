@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ETF Signal</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Cormorant+Garamond:wght@700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f5f2eb;
+  --surface: #ffffff;
+  --surface2: #f0ece2;
+  --border: #d9d3c4;
+  --text: #1a1814;
+  --muted: #8c8679;
+  --buy: #1a6b3c;
+  --buy-bg: #e8f4ed;
+  --buy-border: #b8dfc9;
+  --sell: #8b2020;
+  --sell-bg: #f8eaea;
+  --sell-border: #e8c0c0;
+  --neutral: #5a5040;
+  --accent: #c9a84c;
+}
+
+body {
+  font-family: 'DM Mono', monospace;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 40px;
+}
+
+/* ── HEADER ── */
+.header {
+  background: var(--text);
+  color: var(--bg);
+  padding: 24px 32px 20px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+.header h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+.header-sub {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  margin-top: 5px;
+}
+.summary-chips {
+  display: flex;
+  gap: 12px;
+}
+.chip {
+  background: rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 10px 18px;
+  text-align: center;
+  min-width: 110px;
+}
+.chip-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  display: block;
+  margin-bottom: 3px;
+}
+.chip-value { font-size: 1rem; font-weight: 500; }
+.chip-value.green { color: #7ecfa3; }
+.chip-value.red { color: #f0a0a0; }
+
+/* ── TOOLBAR ── */
+.toolbar {
+  display: flex;
+  gap: 10px;
+  padding: 18px 32px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.btn {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.78rem;
+  padding: 10px 20px;
+  border: 1.5px solid var(--text);
+  background: var(--text);
+  color: var(--bg);
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  border-radius: 8px;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s;
+}
+.btn:active { opacity: 0.75; }
+.btn-outline { background: transparent; color: var(--text); }
+.btn-accent { background: var(--accent); border-color: var(--accent); color: var(--text); }
+
+.formula-hint {
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  line-height: 1.7;
+  max-width: 420px;
+}
+.formula-hint strong { color: var(--text); }
+
+/* ── GRID ── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  padding: 24px 32px;
+}
+
+/* ── CARD ── */
+.card {
+  background: var(--surface);
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  overflow: hidden;
+}
+.card.signal-buy  { border-color: var(--buy-border);  border-left: 5px solid var(--buy); }
+.card.signal-sell { border-color: var(--sell-border); border-left: 5px solid var(--sell); }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.card-name  { font-size: 0.95rem; font-weight: 500; }
+.card-meta  { font-size: 0.7rem; color: var(--muted); font-style: italic; margin-top: 2px; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.badge.buy  { background: var(--buy-bg);  color: var(--buy);  border: 1px solid var(--buy-border); }
+.badge.sell { background: var(--sell-bg); color: var(--sell); border: 1px solid var(--sell-border); }
+.badge.hold { background: var(--surface2); color: var(--neutral); border: 1px solid var(--border); }
+.badge.empty{ background: transparent; color: var(--muted); border: 1px dashed var(--border); }
+
+/* ── INPUTS ROW ── */
+.card-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.input-cell {
+  padding: 14px 18px;
+  border-right: 1px solid var(--border);
+}
+.input-cell:last-child { border-right: none; }
+.input-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 6px;
+}
+.card-input {
+  font-family: 'DM Mono', monospace;
+  font-size: 1.1rem;
+  width: 100%;
+  padding: 6px 0;
+  border: none;
+  border-bottom: 2px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  outline: none;
+  -webkit-appearance: none;
+}
+.card-input:focus { border-bottom-color: var(--accent); }
+
+/* ── RESULT BAR ── */
+.card-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: var(--surface2);
+  border-top: 1px solid var(--border);
+}
+.card-change { font-size: 0.82rem; }
+.card-change.neg { color: var(--buy); }
+.card-change.pos { color: var(--sell); }
+.card-amount { font-size: 1.1rem; font-weight: 500; }
+.card-amount.buy  { color: var(--buy); }
+.card-amount.sell { color: var(--sell); }
+.card-amount.na   { color: var(--muted); font-size: 0.85rem; }
+
+/* ── CARD ACTIONS ── */
+.card-actions {
+  display: flex;
+  gap: 8px;
+  padding: 10px 18px;
+  border-top: 1px solid var(--border);
+}
+.btn-sm {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 6px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── EMPTY STATE ── */
+.empty {
+  grid-column: 1/-1;
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--muted);
+}
+.empty h3 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.6rem;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+.empty p { font-size: 0.8rem; line-height: 1.8; }
+
+/* ── MODAL (slide up) ── */
+.overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 100;
+  align-items: flex-end;
+  justify-content: center;
+}
+.overlay.open { display: flex; }
+.sheet {
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  padding: 28px 32px 40px;
+  width: 100%;
+  max-width: 560px;
+}
+.sheet-handle {
+  width: 44px; height: 5px;
+  background: var(--border);
+  border-radius: 3px;
+  margin: 0 auto 22px;
+}
+.sheet h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.6rem;
+  margin-bottom: 22px;
+}
+.field { margin-bottom: 16px; }
+.field label {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.field input {
+  font-family: 'DM Mono', monospace;
+  font-size: 1rem;
+  width: 100%;
+  padding: 13px 16px;
+  border: 1.5px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  border-radius: 10px;
+  outline: none;
+  -webkit-appearance: none;
+}
+.field input:focus { border-color: var(--accent); }
+.sheet-actions { display: flex; gap: 12px; margin-top: 24px; }
+.sheet-actions .btn { flex: 1; text-align: center; padding: 14px; font-size: 0.82rem; }
+
+.confirm-msg {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.7;
+  margin-bottom: 22px;
+}
+.confirm-title { font-size: 1rem; font-weight: 500; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>ETF Signal</h1>
+    <div class="header-sub" id="todayDate"></div>
+  </div>
+  <div class="summary-chips">
+    <div class="chip">
+      <span class="chip-label">Do kupienia</span>
+      <span class="chip-value green" id="sumBuy">— zł</span>
+    </div>
+    <div class="chip">
+      <span class="chip-label">Do sprzedaży</span>
+      <span class="chip-value red" id="sumSell">— zł</span>
+    </div>
+    <div class="chip">
+      <span class="chip-label">Sygnały</span>
+      <span class="chip-value" id="sumActive">—</span>
+    </div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <button class="btn btn-accent" onclick="openAdd()">+ Dodaj ETF</button>
+  <button class="btn btn-outline" onclick="askRollover()">⟳ Zamknij dzień</button>
+  <button class="btn btn-outline" onclick="exportData()">↓ Eksport</button>
+  <div class="formula-hint">
+    <strong>Spadek Y%</strong> → KUP za Y × X zł &nbsp;|&nbsp;
+    <strong>Wzrost Y%</strong> → SPRZEDAJ za Y × 0.5 × X zł
+  </div>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<!-- ADD/EDIT SHEET -->
+<div class="overlay" id="addSheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2 id="sheetTitle">Dodaj ETF</h2>
+    <div class="field"><label>Nazwa ETF</label>
+      <input id="mName" type="text" placeholder="np. Vanguard S&P 500 UCITS ETF" autocomplete="off"></div>
+    <div class="field"><label>Ticker</label>
+      <input id="mTicker" type="text" placeholder="np. VUAA" autocomplete="off"></div>
+    <div class="field"><label>Kwota X (zł) — bazowa jednostka transakcji</label>
+      <input id="mX" type="number" placeholder="np. 500" min="1" inputmode="decimal"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-outline" onclick="closeSheet('addSheet')">Anuluj</button>
+      <button class="btn" onclick="saveEtf()">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM SHEET -->
+<div class="overlay" id="confirmSheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="confirm-title" id="confirmTitle"></div>
+    <div class="confirm-msg" id="confirmMsg"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-outline" onclick="closeSheet('confirmSheet')">Anuluj</button>
+      <button class="btn" id="confirmOk">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const KEY = 'etf_signal_ipad_v1';
+function load() { try { return JSON.parse(localStorage.getItem(KEY)) || {etfs:[]}; } catch { return {etfs:[]}; } }
+function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
+
+let data = load();
+let editId = null;
+let confirmCb = null;
+
+function fmt(n) {
+  if (n == null || isNaN(n)) return '—';
+  return n.toLocaleString('pl-PL', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function render() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  if (data.etfs.length === 0) {
+    grid.innerHTML = `<div class="empty"><h3>Brak ETF-ów</h3><p>Kliknij "+ Dodaj ETF" żeby zacząć.</p></div>`;
+    updateSummary(0,0,0); return;
+  }
+
+  let totalBuy=0, totalSell=0, active=0;
+
+  data.etfs.forEach((etf, idx) => {
+    const prev  = parseFloat(etf.prevPrice) || null;
+    const today = parseFloat(etf.todayPrice) || null;
+    const X     = parseFloat(etf.x) || null;
+
+    let pct=null, signal='empty', amount=null;
+
+    if (prev && today && prev > 0 && X) {
+      pct = ((today - prev) / prev) * 100;
+      if (pct < -0.01) {
+        signal='buy'; amount=Math.abs(pct)*X; totalBuy+=amount; active++;
+      } else if (pct > 0.01) {
+        signal='sell'; amount=pct*0.5*X; totalSell+=amount; active++;
+      } else { signal='hold'; }
+    }
+
+    const labels = {buy:'▲ KUP', sell:'▼ SPRZEDAJ', hold:'= CZEKAJ', empty:'· · ·'};
+    const pctStr = pct!=null ? (pct>=0?'+':'')+pct.toFixed(2)+'%' : '—';
+    const pctClass = pct==null?'': pct<0?'neg':'pos';
+    const amtStr = amount!=null ? fmt(amount)+' zł' : '—';
+    const amtClass = signal==='buy'?'buy':signal==='sell'?'sell':'na';
+
+    const card = document.createElement('div');
+    card.className = `card${signal==='buy'?' signal-buy':signal==='sell'?' signal-sell':''}`;
+    card.innerHTML = `
+      <div class="card-header">
+        <div>
+          <div class="card-name">${etf.name||'—'}</div>
+          <div class="card-meta">${etf.ticker||''} &nbsp;·&nbsp; X = ${etf.x ? fmt(parseFloat(etf.x)) : '—'} zł</div>
+        </div>
+        <span class="badge ${signal}">${labels[signal]}</span>
+      </div>
+      <div class="card-inputs">
+        <div class="input-cell">
+          <span class="input-label">Cena bazowa</span>
+          <input class="card-input" type="number" inputmode="decimal" step="0.0001"
+            value="${etf.prevPrice||''}" placeholder="0.0000"
+            onchange="updateF(${idx},'prevPrice',this.value)">
+        </div>
+        <div class="input-cell">
+          <span class="input-label">Cena dziś</span>
+          <input class="card-input" type="number" inputmode="decimal" step="0.0001"
+            value="${etf.todayPrice||''}" placeholder="0.0000"
+            onchange="updateF(${idx},'todayPrice',this.value)">
+        </div>
+      </div>
+      <div class="card-result">
+        <span class="card-change ${pctClass}">${pctStr}</span>
+        <span class="card-amount ${amtClass}">${amtStr}</span>
+      </div>
+      <div class="card-actions">
+        <button class="btn-sm" onclick="editEtf(${idx})">edytuj</button>
+        <button class="btn-sm" onclick="askDelete(${idx})">usuń</button>
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  updateSummary(totalBuy, totalSell, active);
+}
+
+function updateSummary(buy, sell, active) {
+  document.getElementById('sumBuy').textContent    = buy>0  ? fmt(buy)+' zł'  : '— zł';
+  document.getElementById('sumSell').textContent   = sell>0 ? fmt(sell)+' zł' : '— zł';
+  document.getElementById('sumActive').textContent = active+' / '+data.etfs.length;
+}
+
+function updateF(idx, field, val) { data.etfs[idx][field]=val; save(data); render(); }
+
+function openAdd() {
+  editId=null;
+  ['mName','mTicker','mX'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('sheetTitle').textContent='Dodaj ETF';
+  openSheet('addSheet');
+  setTimeout(()=>document.getElementById('mName').focus(),100);
+}
+function editEtf(idx) {
+  editId=idx; const e=data.etfs[idx];
+  document.getElementById('mName').value=e.name||'';
+  document.getElementById('mTicker').value=e.ticker||'';
+  document.getElementById('mX').value=e.x||'';
+  document.getElementById('sheetTitle').textContent='Edytuj ETF';
+  openSheet('addSheet');
+}
+function saveEtf() {
+  const name=document.getElementById('mName').value.trim();
+  const ticker=document.getElementById('mTicker').value.trim().toUpperCase();
+  const x=parseFloat(document.getElementById('mX').value);
+  if(!name){alert('Podaj nazwę ETF');return;}
+  if(!x||x<=0){alert('Podaj kwotę X > 0');return;}
+  if(editId!==null) { Object.assign(data.etfs[editId],{name,ticker,x}); }
+  else { data.etfs.push({name,ticker,x,prevPrice:'',todayPrice:''}); }
+  save(data); closeSheet('addSheet'); render();
+}
+
+function askDelete(idx) {
+  showConfirm('Usunąć ETF?',
+    `Czy na pewno chcesz usunąć "${data.etfs[idx].name}"?`,
+    ()=>{ data.etfs.splice(idx,1); save(data); render(); });
+}
+function askRollover() {
+  const n=data.etfs.filter(e=>parseFloat(e.todayPrice)>0).length;
+  if(!n){alert('Nie wpisano żadnych cen dzisiejszych.');return;}
+  showConfirm('⟳ Zamknij dzień',
+    `Dzisiejsza cena (${n} ETF-ów) stanie się jutrzejszą ceną bazową.\nPole "Cena dziś" zostanie wyczyszczone.`,
+    ()=>{ data.etfs.forEach(e=>{ if(parseFloat(e.todayPrice)>0) e.prevPrice=e.todayPrice; e.todayPrice=''; }); save(data); render(); });
+}
+function exportData() {
+  const b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(b);
+  a.download=`etf-signal-${new Date().toISOString().slice(0,10)}.json`; a.click();
+}
+
+function openSheet(id)  { document.getElementById(id).classList.add('open'); }
+function closeSheet(id) { document.getElementById(id).classList.remove('open'); }
+function showConfirm(title, msg, cb) {
+  document.getElementById('confirmTitle').textContent=title;
+  document.getElementById('confirmMsg').textContent=msg;
+  confirmCb=cb; openSheet('confirmSheet');
+}
+document.getElementById('confirmOk').addEventListener('click',()=>{ if(confirmCb)confirmCb(); closeSheet('confirmSheet'); });
+['addSheet','confirmSheet'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',e=>{ if(e.target===document.getElementById(id)) closeSheet(id); });
+});
+
+document.getElementById('todayDate').textContent =
+  new Date().toLocaleDateString('pl-PL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+if(data.etfs.length===0){
+  data.etfs=[
+    {name:'Vanguard S&P 500 UCITS ETF',ticker:'VUAA', x:500,prevPrice:'',todayPrice:''},
+    {name:'iShares MSCI World ex-US',  ticker:'EXUS', x:300,prevPrice:'',todayPrice:''},
+    {name:'iShares Core MSCI EM',      ticker:'EIMI', x:200,prevPrice:'',todayPrice:''},
+    {name:'iShares Physical Gold',     ticker:'IGLN', x:300,prevPrice:'',todayPrice:''},
+    {name:'iShares Global Corp Bond',  ticker:'CORP', x:200,prevPrice:'',todayPrice:''},
+  ];
+  save(data);
+}
+render();
+</script>
+</body>
+</html>
